@@ -1,86 +1,148 @@
-import React, { useEffect, useState } from 'react';
-import { Form, FormGroup, Label, Input, Button } from 'reactstrap';
+import React, { useState, useEffect } from 'react';
+import {
+  Button,
+  Form,
+  FormGroup,
+  Label,
+  Input,
+  FormFeedback,
+} from 'reactstrap';
 import { useHistory } from 'react-router-dom';
+import '../styles/Login-Success.css';
 
-import axios from 'axios';
-
-const initialForm = {
+const formInitial = {
   email: '',
   password: '',
   terms: false,
 };
 
+const errorMessages = {
+  email: 'Geçerli bir eposta adresi girin.',
+  password:
+    'En az 8 karakter, en az 1 büyük harf, en az 1 küçük harf, en az 1 sembol(!@#$%^&*_ ) ve en az 1 rakam içermelidir.',
+  terms: 'KVKK metnini kabul etmeniz gerekmektedir.',
+};
+
 export default function Login() {
-  const [form, setForm] = useState(initialForm);
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState(formInitial);
+  const [errors, setErrors] = useState({
+    email: false,
+    password: false,
+    terms: false,
+  });
+  const [isValid, setIsValid] = useState(false);
   const history = useHistory();
 
-  const handleChange = (event) => {
-    let { name, value, type, checked } = event.target;
-    setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+  const validateEmail = (email) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+  };
 
-    if (name === 'terms' && checked) {
-      setError('');
+  const validatePassword = (password) => {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/.test(
+      password
+    );
+  };
+
+  const handleChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    const newValue = type === 'checkbox' ? checked : value;
+
+    setFormData({ ...formData, [name]: newValue });
+
+    if (name === 'email') {
+      setErrors((prev) => ({ ...prev, email: !validateEmail(newValue) }));
+    }
+
+    if (name === 'password') {
+      setErrors((prev) => ({ ...prev, password: !validatePassword(newValue) }));
+    }
+
+    if (name === 'terms') {
+      setErrors((prev) => ({ ...prev, terms: !newValue }));
     }
   };
 
+  useEffect(() => {
+    if (
+      validateEmail(formData.email) &&
+      validatePassword(formData.password) &&
+      formData.terms
+    ) {
+      setIsValid(true);
+    } else {
+      setIsValid(false);
+    }
+  }, [formData]);
+
   const handleSubmit = (event) => {
     event.preventDefault();
-
-    axios
-      .get('https://6540a96145bedb25bfc247b4.mockapi.io/api/login')
-      .then((res) => {
-        const user = res.data.find(
-          (item) => item.password == form.password && item.email == form.email
-        );
-        if (user) {
-          setForm(initialForm);
-          history.push('/main');
-        } else {
-          history.push('/error');
-        }
-      });
+    if (!isValid) return;
+    history.push('/success');
   };
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <FormGroup>
-        <Label for="exampleEmail">Email</Label>
-        <Input
-          id="exampleEmail"
-          name="email"
-          placeholder="Enter your email"
-          type="email"
-          onChange={handleChange}
-          value={form.email}
-        />
-      </FormGroup>
-      <FormGroup>
-        <Label for="examplePassword">Password</Label>
-        <Input
-          id="examplePassword"
-          name="password"
-          placeholder="Enter your password "
-          type="password"
-          onChange={handleChange}
-          value={form.password}
-        />
-      </FormGroup>
-      <Label check htmlFor="terms">
-        <Input
-          type="checkbox"
-          name="terms"
-          id="terms"
-          onChange={handleChange}
-          checked={form.terms}
-        />
-        I agree to terms of service and privacy policy
-      </Label>
-      <FormGroup className="text-center p-4">
-        <Button color="primary" disabled={!form.terms}>
-          Sign In
-        </Button>
-      </FormGroup>
-    </Form>
+    <div className="login-container">
+      <div className="login-form-box">
+        <h5>Kayıt Ol</h5>
+        <Form onSubmit={handleSubmit} noValidate>
+          <FormGroup>
+            <Label for="email">Email</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Email giriniz"
+              value={formData.email}
+              onChange={handleChange}
+              invalid={errors.email}
+            />
+            {errors.email && <FormFeedback>{errorMessages.email}</FormFeedback>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label for="password">Şifre</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Şifre giriniz"
+              value={formData.password}
+              onChange={handleChange}
+              invalid={errors.password}
+            />
+            {errors.password && (
+              <FormFeedback>{errorMessages.password}</FormFeedback>
+            )}
+          </FormGroup>
+
+          <FormGroup check className="mb-3">
+            <Input
+              type="checkbox"
+              id="terms"
+              name="terms"
+              checked={formData.terms}
+              onChange={handleChange}
+              invalid={errors.terms}
+            />
+            <Label for="terms" check>
+              Kullanım koşullarını, gizlilik politikasını kabul ediyorum.
+            </Label>
+            {errors.terms && (
+              <FormFeedback style={{ display: 'block' }}>
+                {errorMessages.terms}
+              </FormFeedback>
+            )}
+          </FormGroup>
+
+          <Button color="primary" disabled={!isValid} type="submit" block>
+            Kayıt Ol
+          </Button>
+        </Form>
+      </div>
+    </div>
   );
 }
